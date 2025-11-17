@@ -1,0 +1,150 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Breaking Buggs — AI Debugging Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  body{
+    margin:0; padding:0;
+    font-family:'Poppins',sans-serif;
+    background: linear-gradient(135deg,#4e54c8,#8f94fb);
+    display:flex; justify-content:center; align-items:center;
+    min-height:100vh;
+  }
+  .app{
+    width:650px; max-width:95%;
+    backdrop-filter: blur(20px);
+    background: rgba(255,255,255,0.15);
+    border-radius:25px;
+    padding:20px;
+    box-shadow:0 10px 50px rgba(0,0,0,0.35);
+  }
+  .header{
+    text-align:center; color:#fff; margin-bottom:15px;
+  }
+  .header .logo{
+    font-size:48px; animation:spinLogo 3s linear infinite;
+  }
+  .header .title{
+    font-size:28px; font-weight:700; margin-top:6px;
+    animation:fadeSlide 1.2s ease-in-out;
+  }
+  .header .tagline{
+    font-size:14px; opacity:0.9; margin-top:4px;
+    animation:fadeIn 2s ease;
+  }
+  @keyframes spinLogo{from{transform:rotate(0);} to{transform:rotate(360deg);}}
+  @keyframes fadeSlide{from{opacity:0; transform:translateY(-10px);} to{opacity:1; transform:translateY(0);}}
+  @keyframes fadeIn{from{opacity:0;} to{opacity:1;}}
+  .messages{
+    height:450px; overflow-y:auto;
+    padding:15px; display:flex; flex-direction:column; gap:10px;
+  }
+  .msg{
+    max-width:80%; padding:12px 14px; border-radius:18px; animation:popIn 0.35s ease;
+  }
+  @keyframes popIn{0%{transform:scale(0.8); opacity:0;} 100%{transform:scale(1); opacity:1;}}
+  .agent{background:#ffffffaa; color:#111; align-self:flex-start;}
+  .user{background:#4e54c8; color:#fff; align-self:flex-end;}
+  .controls{display:flex; margin-top:15px;}
+  .controls input{
+    flex:1; padding:12px; border-radius:12px; border:none; outline:none; font-size:16px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.15);
+  }
+  .controls button{
+    margin-left:10px; padding:12px 18px; background:#111; color:#fff; border:none; border-radius:12px;
+    font-size:16px; cursor:pointer; transition:0.2s;
+  }
+  .controls button:hover{transform:scale(1.07); background:#000;}
+  .typing .dots span{animation:blink 1.4s infinite both;}
+  .typing .dots span:nth-child(2){animation-delay:0.2s;}
+  .typing .dots span:nth-child(3){animation-delay:0.4s;}
+  @keyframes blink{0%{opacity:0;} 50%{opacity:1;} 100%{opacity:0;}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">🌸</div>
+    <div class="title">Breaking Buggs — AI Debugging Agent</div>
+    <div class="tagline">"Breaking bugs before they break you!"</div>
+  </div>
+
+  <div id="messages" class="messages"></div>
+
+  <div class="controls">
+    <input id="input" placeholder="Paste code or type a query..." />
+    <button onclick="sendMsg()">Send</button>
+  </div>
+</div>
+
+<script>
+  // ======================
+  // SET YOUR OPENAI API KEY HERE
+  // ======================
+  const API_KEY = "YOUR_OPENAI_API_KEY";
+
+  const chatEl = document.getElementById("messages");
+
+  // Add message bubble
+  function addMsg(text, who="agent"){
+    const div = document.createElement("div");
+    div.className = `msg ${who}`;
+    div.innerHTML = text;
+    chatEl.appendChild(div);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  // Typing indicator
+  function agentReply(raw){
+    const typing = document.createElement("div");
+    typing.className = 'msg agent typing';
+    typing.innerHTML = '<div class="dots"><span>•</span><span>•</span><span>•</span></div>';
+    chatEl.appendChild(typing);
+    chatEl.scrollTop = chatEl.scrollHeight;
+
+    const delay = Math.min(1500 + (raw?.length||0) * 4, 4000);
+    setTimeout(()=>{
+      typing.remove();
+      addMsg(raw.replace(/\n/g,'<br>'), 'agent');
+    }, delay);
+  }
+
+  async function sendMsg(){
+    const inp = document.getElementById("input");
+    const text = inp.value.trim();
+    if(!text) return;
+
+    addMsg(text, "user");
+    inp.value = "";
+
+    // Payload for OpenAI API
+    const payload = {
+      model: "gpt-4o-mini",
+      messages: [
+        {role:"system", content:"You are an AI debugging assistant. Detect bugs, errors, vulnerabilities, and performance issues in any programming language. Provide the corrected, error-free code with explanations in a professional, friendly tone."},
+        {role:"user", content:text}
+      ]
+    };
+
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions",{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "Authorization":"Bearer "+API_KEY
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      const reply = data.choices?.[0]?.message?.content || "(No response)";
+      agentReply(reply);
+    } catch(err){
+      agentReply("❌ Error connecting to OpenAI API: "+err.message);
+    }
+  }
+</script>
+</body>
+</html>
